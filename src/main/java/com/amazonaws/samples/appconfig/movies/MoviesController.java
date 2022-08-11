@@ -23,6 +23,7 @@ public class MoviesController {
 
     /**
      * Static Movie Array containing all the list of Movies.
+     * test comment
      */
     private static final Movie[] PAIDMOVIES = {
         new Movie(1L, "Paid Movie 1"),
