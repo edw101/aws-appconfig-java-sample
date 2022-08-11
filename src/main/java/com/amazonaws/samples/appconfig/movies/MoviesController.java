@@ -1,6 +1,7 @@
 package com.amazonaws.samples.appconfig.movies;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Supplier;
@@ -36,15 +37,26 @@ public class MoviesController {
         new Movie(9L, "Paid Movie 9"),
         new Movie(10L, "Paid Movie 10")
     };
-    public Duration cacheItemTtl = Duration.ofSeconds(30);
+//    public Duration cacheItemTtl = Duration.ofSeconds(30);
+//    private Boolean boolEnableFeature;
+//    private int intItemLimit;
+//    private AppConfigClient client;
+//    private String clientId;
+//    private ConfigurationCache cache;
+
     private Boolean boolEnableFeature;
     private int intItemLimit;
-    private AppConfigClient client;
-    private String clientId;
-    private ConfigurationCache cache;
+
+
+
+    private MovieServiceReplaceMethod movieServiceReplaceMethod;
+    @Autowired
+    private OldMovieService oldMovieService;
+    @Autowired
+    private NewMovieService newMovieService;
 
     @Autowired
-    private Environment env;
+    private AppConfigServiceImpl appConfigService;
 
     /**
      * REST API method to get all the Movies based on AWS App Config parameter.
@@ -53,18 +65,7 @@ public class MoviesController {
      */
     @GetMapping("/movies/getMovies")
     public Movie[] movie() {
-
-        final String application = env.getProperty("appconfig.application");
-        final String environment = env.getProperty("appconfig.environment");
-        final String config = env.getProperty("appconfig.config");
-        cacheItemTtl = Duration.ofSeconds(Long.parseLong(env.getProperty("appconfig.cacheTtlInSeconds")));
-
-        final AppConfigUtility appConfigUtility = new AppConfigUtility(getOrDefault(this::getClient, this::getDefaultClient),
-                getOrDefault(this::getConfigurationCache, ConfigurationCache::new),
-                getOrDefault(this::getCacheItemTtl, () -> cacheItemTtl),
-                getOrDefault(this::getClientId, this::getDefaultClientId));
-
-        final GetConfigurationResponse response = appConfigUtility.getConfiguration(new ConfigurationKey(application, environment, config));
+        final GetConfigurationResponse response = appConfigService.getConfigurationResponse();
         final String appConfigResponse = response.content().asUtf8String();
 
         final JSONObject jsonResponseObject = new JSONObject(appConfigResponse);
@@ -83,36 +84,28 @@ public class MoviesController {
         }
     }
 
-
-    private <T> T getOrDefault(final Supplier<T> optionalGetter, final Supplier<T> defaultGetter) {
-        return Optional.ofNullable(optionalGetter.get()).orElseGet(defaultGetter);
+    /**
+     * REST API method to get all the Movies based on AWS App Config parameter using replace method.
+     *
+     * @return List of Movies
+     */
+    @GetMapping("/movies/replaceMethod/getMovies")
+    public List<Movie> getMoviesReplaceMethod() {
+        final GetConfigurationResponse response = appConfigService.getConfigurationResponse();
+        movieServiceReplaceMethod = new MovieServiceReplaceMethod(response, oldMovieService, newMovieService);
+        return movieServiceReplaceMethod.getMovies();
     }
 
-    private String getDefaultClientId() {
-        return UUID.randomUUID().toString();
+    /**
+     * REST API method to get discount based on AWS App Config parameter using replace method.
+     *
+     * @return int discount
+     */
+    @GetMapping("/movies/replaceMethod/getDiscount")
+    public int getDiscount() {
+        final GetConfigurationResponse response = appConfigService.getConfigurationResponse();
+        movieServiceReplaceMethod = new MovieServiceReplaceMethod(response, oldMovieService, newMovieService);
+        return movieServiceReplaceMethod.getDiscount();
     }
-
-    protected AppConfigClient getDefaultClient() {
-        return AppConfigClient.create();
-    }
-
-    public ConfigurationCache getConfigurationCache() {
-        return cache;
-    }
-
-
-    public AppConfigClient getClient() {
-        return client;
-    }
-
-
-    public Duration getCacheItemTtl() {
-        return cacheItemTtl;
-    }
-
-    public String getClientId() {
-        return clientId;
-    }
-
 
 }
